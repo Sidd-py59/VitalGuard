@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VitalGuard — Real-Time Patient Care System</title>
+    <meta name="description"
+        content="Self-managing patient care system for real-time clinical escalation using AI-powered vital sign monitoring.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💓</text></svg>">
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">💓</span>
+                <h1>VitalGuard</h1>
+            </div>
+            <span class="tagline">AI-Powered Patient Care System</span>
+        </div>
+        <div class="header-right">
+            <div class="twilio-badge" id="twilio-badge" title="Twilio SMS Status">
+                <span class="twilio-dot"></span>
+                <span class="twilio-label">SMS: --</span>
+            </div>
+            <div class="connection-status" id="connection-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+            <div class="header-time" id="header-time"></div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main id="dashboard">
+        <!-- Scenario Controls -->
+        <section class="scenario-controls" id="scenario-controls">
+            <h3>Scenario Mode</h3>
+            <div class="scenario-buttons">
+                <button class="scenario-btn active" data-mode="normal" id="btn-normal">
+                    <span class="btn-icon">🟢</span>
+                    <span class="btn-label">Normal</span>
+                </button>
+                <button class="scenario-btn" data-mode="mild_anomaly" id="btn-mild">
+                    <span class="btn-icon">🟡</span>
+                    <span class="btn-label">Mild Anomaly</span>
+                </button>
+                <button class="scenario-btn" data-mode="critical_emergency" id="btn-critical">
+                    <span class="btn-icon">🔴</span>
+                    <span class="btn-label">Critical Emergency</span>
+                </button>
+                <button class="scenario-btn" data-mode="auto" id="btn-auto">
+                    <span class="btn-icon">🔄</span>
+                    <span class="btn-label">Auto Simulation</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Vitals Grid -->
+        <section class="vitals-grid" id="vitals-grid">
+            <!-- Heart Rate -->
+            <div class="vital-card" id="card-hr" data-metric="heart_rate">
+                <div class="vital-header">
+                    <span class="vital-icon">❤️</span>
+                    <span class="vital-name">Heart Rate</span>
+                </div>
+                <div class="vital-value-wrapper">
+                    <span class="vital-value" id="val-hr">--</span>
+                    <span class="vital-unit">bpm</span>
+                </div>
+                <div class="vital-range">Normal: 60–100 bpm</div>
+                <div class="chart-container">
+                    <canvas id="chart-hr"></canvas>
+                </div>
+                <div class="vital-bar-container">
+                    <div class="vital-bar" id="bar-hr"></div>
+                </div>
+            </div>
+
+            <!-- SpO2 -->
+            <div class="vital-card" id="card-spo2" data-metric="spo2">
+                <div class="vital-header">
+                    <span class="vital-icon">🫁</span>
+                    <span class="vital-name">SpO2</span>
+                </div>
+                <div class="vital-value-wrapper">
+                    <span class="vital-value" id="val-spo2">--</span>
+                    <span class="vital-unit">%</span>
+                </div>
+                <div class="vital-range">Normal: 95–100%</div>
+                <div class="chart-container">
+                    <canvas id="chart-spo2"></canvas>
+                </div>
+                <div class="vital-bar-container">
+                    <div class="vital-bar" id="bar-spo2"></div>
+                </div>
+            </div>
+
+            <!-- Temperature -->
+            <div class="vital-card" id="card-temp" data-metric="temperature">
+                <div class="vital-header">
+                    <span class="vital-icon">🌡️</span>
+                    <span class="vital-name">Temperature</span>
+                </div>
+                <div class="vital-value-wrapper">
+                    <span class="vital-value" id="val-temp">--</span>
+                    <span class="vital-unit">°C</span>
+                </div>
+                <div class="vital-range">Normal: 36.1–37.2°C</div>
+                <div class="chart-container">
+                    <canvas id="chart-temp"></canvas>
+                </div>
+                <div class="vital-bar-container">
+                    <div class="vital-bar" id="bar-temp"></div>
+                </div>
+            </div>
+
+            <!-- HRV -->
+            <div class="vital-card" id="card-hrv" data-metric="hrv">
+                <div class="vital-header">
+                    <span class="vital-icon">📊</span>
+                    <span class="vital-name">HRV</span>
+                </div>
+                <div class="vital-value-wrapper">
+                    <span class="vital-value" id="val-hrv">--</span>
+                    <span class="vital-unit">ms</span>
+                </div>
+                <div class="vital-range">Normal: 20–70 ms</div>
+                <div class="chart-container">
+                    <canvas id="chart-hrv"></canvas>
+                </div>
+                <div class="vital-bar-container">
+                    <div class="vital-bar" id="bar-hrv"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Middle Row: Risk Gauge + Actions -->
+        <section class="middle-row">
+            <!-- Risk Gauge -->
+            <div class="risk-gauge-container" id="risk-gauge-container">
+                <h3>Risk Assessment</h3>
+                <div class="risk-gauge" id="risk-gauge">
+                    <svg viewBox="0 0 200 200" class="gauge-svg">
+                        <circle class="gauge-bg" cx="100" cy="100" r="85" />
+                        <circle class="gauge-fill" id="gauge-fill" cx="100" cy="100" r="85" />
+                    </svg>
+                    <div class="gauge-center">
+                        <span class="gauge-value" id="gauge-value">0</span>
+                        <span class="gauge-label" id="gauge-label">LOW</span>
+                    </div>
+                </div>
+                <div class="risk-factors" id="risk-factors">
+                    <p class="no-factors">All vitals normal</p>
+                </div>
+            </div>
+
+            <!-- Emergency Actions Panel -->
+            <div class="actions-panel" id="actions-panel">
+                <h3>Autonomous Actions</h3>
+                <div class="actions-list" id="actions-list">
+                    <div class="action-placeholder">
+                        <span class="placeholder-icon">🤖</span>
+                        <p>Agent is monitoring. Actions will appear here when triggered.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Decision Log -->
+        <section class="decision-log-section" id="decision-log-section">
+            <div class="log-header">
+                <h3>Agent Decision Log</h3>
+                <span class="log-count" id="log-count">0 entries</span>
+            </div>
+            <div class="decision-log" id="decision-log">
+                <div class="log-placeholder">
+                    <p>Waiting for first reading...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="app-footer">
+        <span>VitalGuard v1.0 — Team Code Conqueror's</span>
+        <span>Powered by LangGraph + Ollama Llama 3.1</span>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
