@@ -9,6 +9,9 @@ import itertools
 import random
 import time
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Literal, Optional
@@ -25,6 +28,12 @@ from config import (
     PATIENT_PHONE,
     PATIENT_NAME,
     is_twilio_configured,
+    DOCTOR_EMAIL,
+    EMAIL_ENABLED,
+    SMTP_SERVER,
+    SMTP_PORT,
+    SMTP_USERNAME,
+    SMTP_PASSWORD,
 )
 
 logger = logging.getLogger("vitalguard.actions")
@@ -271,11 +280,60 @@ async def alert_user(vitals, risk, reasoning, location=None, trigger_vitals=None
     )
 
 
+def _send_email(to_email: str, subject: str, body: str) -> dict:
+    if not EMAIL_ENABLED or not SMTP_USERNAME or not SMTP_PASSWORD:
+        logger.info(f"Mock Email meant for {to_email}: Subject: {subject} | Body: {body}")
+        return {"mode": "mock", "status": "mock_sent_email"}
+
+    try:
+        msg = EmailMessage()
+        msg.set_content(body)
+        msg['Subject'] = subject
+        msg['From'] = SMTP_USERNAME
+        msg['To'] = to_email
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"Email sent to {to_email}")
+        return {"mode": "live", "status": "email_sent"}
+    except Exception as e:
+        logger.error(f"SMTP Email failed: {e}")
+        print(f"\n--- MOCK EMAIL FALLBACK ---")
+        print(f"To: {to_email}")
+        print(f"Subject: {subject}")
+        print(f"Message:\n{body}")
+        print(f"---------------------------\n")
+        return {"mode": "mock", "status": "mock_sent_email_fallback", "error": str(e)}
+
+async def _send_email_async(to_email: str, subject: str, body: str) -> dict:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _send_email, to_email, subject, body)
+
+
 async def schedule_doctor(vitals, risk, reasoning, location=None, trigger_vitals=None):
 
     doctor = random.choice(
         ["Dr. Priya Sharma", "Dr. Ravi Patel", "Dr. Ananya Gupta"]
     )
+
+    subject = f"Appointment Scheduled for Patient {PATIENT_NAME}"
+    body = (
+        f"An appointment has been scheduled with {doctor}.\n\n"
+        f"Patient details:\n"
+        f"Name: {PATIENT_NAME}\n"
+        f"Risk Score: {risk.get('score', 0)}\n"
+        f"Heart Rate: {vitals.get('heart_rate', 'N/A')}\n"
+        f"SpO2: {vitals.get('spo2', 'N/A')}\n"
+        f"Reasoning: {reasoning}\n"
+    )
+
+    if trigger_vitals:
+        body += f"Triggered By: {', '.join(trigger_vitals)}\n"
+
+    email_result = await _send_email_async(DOCTOR_EMAIL, subject, body)
 
     return ActionResult(
         action_type="schedule_doctor",
@@ -283,6 +341,7 @@ async def schedule_doctor(vitals, risk, reasoning, location=None, trigger_vitals
         message=f"Appointment scheduled with {doctor}",
         details={
             "doctor": doctor,
+            "email_delivery": email_result,
             "trigger_vitals": trigger_vitals or [],
         },
         timestamp=datetime.now().isoformat(),
