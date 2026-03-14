@@ -131,6 +131,10 @@ def _send_sms(to_number: str, body: str) -> dict:
     except Exception as e:
 
         logger.error(f"Twilio SMS failed: {e}")
+        print(f"\n--- MOCK SMS FALLBACK ---")
+        print(f"To: {to_number}")
+        print(f"Message:\n{body}")
+        print(f"-------------------------\n")
 
         return {"mode": "mock", "status": "mock_sent_fallback", "error": str(e)}
 
@@ -176,6 +180,10 @@ def _make_voice_call(phone_number: str, message: str) -> dict:
     except Exception as e:
 
         logger.error(f"Voice call failed: {e}")
+        print(f"\n--- MOCK VOICE CALL FALLBACK ---")
+        print(f"To: {phone_number}")
+        print(f"Message:\n{message}")
+        print(f"--------------------------------\n")
 
         return {"mode": "mock", "status": "call_failed", "error": str(e)}
 
